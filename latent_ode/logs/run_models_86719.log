@@ -1,0 +1,10 @@
+/home/zijiehuang/jingdong/latent_ode/run_models.py
+run_models.py --dataset ../../wanjia/LG-ODE/data/simple_spring --latent-ode --rec-dims 100 --rec-layers 4 --gen-layers 2 --units 500 --gru-units 50 --lr 1e-3 --train_cut 20000 --test_cut 5000 --device 3
+Experiment 86719
+Epoch 0001 [Test seq (cond on sampled tp)] | Loss 352.438080 | Likelihood -353.778717 | KL fp 3.5793 | FP STD 0.0456|
+KL coef: 0.0
+Train loss (one batch): 47.56132125854492
+Train CE loss (one batch): 0.0
+Test MSE: 0.0715
+Poisson likelihood: 0.0
+CE loss: 0.0

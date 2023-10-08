@@ -1,0 +1,2 @@
+/home/zijiehuang/jingdong/latent_ode/run_models.py
+run_models.py --dataset ../../wanjia/LG-ODE/data/simple_spring --latent-ode --rec-dims 100 --rec-layers 4 --gen-layers 2 --units 100 --gru-units 50 --lr 1e-3 --train_cut 200 --test_cut 50
