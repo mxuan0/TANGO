@@ -1,0 +1,10 @@
+/home/zijiehuang/jingdong/latent_ode/run_models.py
+run_models.py --dataset ../../wanjia/LG-ODE/data/simple_spring --latent-ode
+Experiment 95023
+Epoch 0001 [Test seq (cond on sampled tp)] | Loss 770.593445 | Likelihood -806.016968 | KL fp 0.7896 | FP STD 0.4445|
+KL coef: 0.0
+Train loss (one batch): 461.8932800292969
+Train CE loss (one batch): 0.0
+Test MSE: 0.1619
+Poisson likelihood: 0.0
+CE loss: 0.0

@@ -1,0 +1,5 @@
+experiments/*
+vis_data/*
+tensorboard_data_exported/*
+tensorboards/*
+lib/__pycache__/*
