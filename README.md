@@ -35,15 +35,15 @@ python run_model.py --data simple_spring --n-balls 5 --train_cut 20000 --test_cu
 with appropriate arguments.
 To run TANGO, provide a non-negative value for the --reverse_f_lambda option 
 ```
-python run_model.py --data simple_spring --n-balls 5 --train_cut 20000 --test_cut 5000 --sample-percent-train 0.6 --sample-percent-train 0.6 --reverse_f_lambda 0.5
+python run_models.py --data simple_spring --n-balls 5 --train_cut 20000 --test_cut 5000 --sample-percent-train 0.6 --sample-percent-train 0.6 --reverse_f_lambda 0.5
 ```
 To run the ablation using the time-reversal loss following the original definition of time-reversal, use the --use_trsode option
 ```
-python run_model.py --data simple_spring --n-balls 5 --train_cut 20000 --test_cut 5000 --sample-percent-train 0.6 --sample-percent-train 0.6 --reverse_f_lambda 0.5 --use_trsode
+python run_models.py --data simple_spring --n-balls 5 --train_cut 20000 --test_cut 5000 --sample-percent-train 0.6 --sample-percent-train 0.6 --reverse_f_lambda 0.5 --use_trsode
 ```
 To run the ablation using the difference between groud truth and backward trajectories, use the --reverse_gt_lambda option instead
 ```
-python run_model.py --data simple_spring --n-balls 5 --train_cut 20000 --test_cut 5000 --sample-percent-train 0.6 --sample-percent-train 0.6 --reverse_gt_lambda 0.5
+python run_models.py --data simple_spring --n-balls 5 --train_cut 20000 --test_cut 5000 --sample-percent-train 0.6 --sample-percent-train 0.6 --reverse_gt_lambda 0.5
 ```
 ### Training HODEN, TRS-ODEN, and TRS-ODEN_GNN
 To train these models, use the run_models_trsode.py script, and use the --function_type option to specify the model.
@@ -63,5 +63,5 @@ CUDA_VISIBLE_DEVICES=0 python run_models_trsode.py --function_type gnn --data si
 ### Training LatentODE
 To train LatentODE, go to latent_ode folder and then run 
 ```
-python run_model.py --data simple_spring --n-balls 5 --latent-ode --train_cut 20000 --test_cut 5000 --sample-percent-train 0.6 --sample-percent-train 0.6 -l 15 -u 1000 -g 50 --rec-layers 4 --gen-layers 2 --rec-dim 100 --lr 1e-3
+python run_models.py --data simple_spring --n-balls 5 --latent-ode --train_cut 20000 --test_cut 5000 --sample-percent-train 0.6 --sample-percent-train 0.6 -l 15 -u 1000 -g 50 --rec-layers 4 --gen-layers 2 --rec-dim 100 --lr 1e-3
 ```
