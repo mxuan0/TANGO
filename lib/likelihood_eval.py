@@ -1,10 +1,6 @@
 from lib.likelihood_eval import *
 import torch
 
-
-
-
-
 def gaussian_log_likelihood(mu, data, obsrv_std):
 	log_p = ((mu - data) ** 2) / (2 * obsrv_std * obsrv_std)
 	neg_log_p = -1*log_p
@@ -23,21 +19,6 @@ def generate_time_weight(n_timepoints,n_dims):
 	return value_matrix
 
 def compute_masked_likelihood(mu, data, mask, likelihood_func,temporal_weights=None):
-	# Compute the likelihood per patient and per attribute so that we don't priorize patients with more measurements
-	n_traj_samples, n_traj, n_timepoints, n_dims = mu.size()
-
-	log_prob = likelihood_func(mu, data)  # [n_traj, n_traj_samples, n_timepoints, n_dims] |x-x'|
-	div = torch.abs(mu).to(mu.device)
-	div = torch.where(div>0,div,torch.FloatTensor([1e-18]).to(mu.device))
-	unnormalized_map = log_prob / div # |x-x'|\ \x\
-	unnormalized_map = torch.sum(unnormalized_map * mask)
-	num_points = torch.sum(mask)
-	mape = unnormalized_map/num_points
-
-	return mape.reshape(1,1), mape.reshape(1,1)
-
-
-def compute_masked_likelihood_jingdong(mu, data, mask, likelihood_func,temporal_weights=None):
 	# Compute the likelihood per patient and per attribute so that we don't priorize patients with more measurements
 	n_traj_samples, n_traj, n_timepoints, n_dims = mu.size()
 
@@ -69,27 +50,7 @@ def compute_masked_likelihood_jingdong(mu, data, mask, likelihood_func,temporal_
 	res_mape = torch.mean(mape_log_prob_masked_normalized, -1)  # 【n_traj_sample, n_traj], average among features.
 	res_mape = res_mape.transpose(0, 1)
 
-
 	return res_mse,res_mape
-
-
-def compute_masked_likelihood_old(mu, data, mask, likelihood_func):
-	# Compute the likelihood per patient and per attribute so that we don't priorize patients with more measurements
-	n_traj_samples, n_traj, n_timepoints, n_dims = mu.size()
-
-
-	log_prob = likelihood_func(mu, data)  # [n_traj, n_traj_samples, n_timepoints, n_dims]
-	log_prob_masked = torch.sum(log_prob * mask, dim=2)  # [n_traj, n_traj_samples, n_dims]
-
-	timelength_per_nodes = torch.sum(mask.permute(0, 1, 3, 2), dim=3)
-	assert (not torch.isnan(timelength_per_nodes).any())
-	log_prob_masked_normalized = torch.div(log_prob_masked,
-										   timelength_per_nodes)  # 【n_traj_sample, n_traj, feature], average each feature by dividing time length
-	# Take mean over the number of dimensions
-	res = torch.mean(log_prob_masked_normalized, -1)  # 【n_traj_sample, n_traj], average among features.
-	res = res.transpose(0, 1)
-	return res
-
 
 def masked_gaussian_log_density(mu, data, obsrv_std, mask,temporal_weights=None):
 
