@@ -7,10 +7,13 @@ from lib.diffeq_solver import GraphODEFuncT
 import numpy as np
 
 import pdb
+
+
 class Gradient(nn.Module):
     def forward(self, inputs):
         x, y = inputs
         return torch.autograd.grad(y, x)[0]
+
 
 def append_activation(activation, layers: list):
     if activation == 'relu':
@@ -19,6 +22,7 @@ def append_activation(activation, layers: list):
         layers.append(nn.Tanh())
     else:
         raise NotImplementedError
+
 
 class ODEFunc(nn.Module):
     def __init__(self, dim=1, time_augment=False,
@@ -47,6 +51,7 @@ class ODEFunc(nn.Module):
         else:
             inputs = x
         return self.layers(inputs)
+
 
 class HamiltionEquation(nn.Module):
     def __init__(self, dim=1, time_augment=False,
@@ -98,10 +103,22 @@ class HamiltionEquation(nn.Module):
         
         return torch.cat([dq, dp], dim=1)
 
+
 class ODENetwork(nn.Module):
     def __init__(self, nb_object=1, nb_coords=2, function_type='ode', time_augment=False,
                  nb_units=1000, nb_layers=1, activation='tanh', 
                  lambda_trs=0.0, learning_rate=2e-4, args=None, device=None):
+        '''
+        nb_object: number of objects in the dynamic system
+        nb_coords: number of dimensions of the space the objects are in
+        function_type: the ODE function type
+        time_augment: whether augment object feature with timestamp
+        nb_units: ODE function linear layer size 
+        nb_layers: number of layer in ODE function
+        lambda_trs: the weight of trsode loss
+        learning_rate: learning rate for network training
+        '''
+                     
         super(ODENetwork, self).__init__()
         self.dim = int(nb_object * nb_coords)
         if function_type == 'gnn':
@@ -158,8 +175,11 @@ class ODENetwork(nn.Module):
     
     def solve(self, ts, x0, graph=None):
         '''
+        given initial states, solve for the states at specified timestamps
+        
         ts: batch_de["time_steps"], shape [n_timepoints] 
         x0: expected [batchsize, n x spatial dim x 2] is not gnn else [batchsize, n, d]
+        graph: used for garph ode function inference
         '''
 
         if self.function_type == 'gnn':
@@ -168,7 +188,6 @@ class ODENetwork(nn.Module):
             rel_type_onehot = torch.FloatTensor(x0.size(0), self.rel_rec.size(0),
                                                     self.args.edge_types).to(self.device)  # [b,20,2]
             rel_type_onehot.zero_()
-            # pdb.set_trace()
             rel_type_onehot.scatter_(2, graph.view(x0.size(0), -1, 1), 1) 
 
             self.func.set_graph(rel_type_onehot,self.rel_rec,self.rel_send,self.args.edge_types)
@@ -240,6 +259,8 @@ class ODENetwork(nn.Module):
 
     def first_point_imputation(self, batch_enc, batch_dec):
         '''
+        use linear imputation to approximate the objects initial state if not already available
+        
         batch_enc["data"] : [b x n_objects, D]
         batch_enc["time_steps"] : [b x n_objects]
 
@@ -247,7 +268,7 @@ class ODENetwork(nn.Module):
         batch_dec["time_steps"] : [b x n_objects, T]
         '''
         dec_indices_orig_init_value = (batch_dec["time_first"] == 0).nonzero(as_tuple=False).squeeze()
-        # pdb.set_trace()
+
         time_intervals = (batch_dec["time_first"] - batch_enc["time_steps"]).unsqueeze(1)
         computed_init_states = batch_enc["data"]*batch_dec["time_first"].unsqueeze(1)/time_intervals - batch_dec["data"][:,0,:]*batch_enc["time_steps"].unsqueeze(1)/time_intervals 
         computed_init_states[dec_indices_orig_init_value] = batch_dec["data"][dec_indices_orig_init_value, 0, :] 
@@ -255,8 +276,16 @@ class ODENetwork(nn.Module):
         return computed_init_states
 
     def compute_loss(self, batch_enc, batch_dec, graph=None, lambda_trs=None, pred_length_cut=None):
+        '''
+        batch_enc: data batch for encoder
+        batch_enc: data batch for decoder
+        graph: used for garph ode function inference
+        lambda_trs: the weight of trsode loss
+        pred_length_cut: threshold for prediction length along t
+        '''
+        
         init_states = self.first_point_imputation(batch_enc, batch_dec) #b x n_objects, D  [n_traj,d]
-        # pdb.set_trace()
+
         b = init_states.shape[0] // self.nb_object
         
         ts = batch_dec["time_steps"]
@@ -264,13 +293,12 @@ class ODENetwork(nn.Module):
         if ts[0] != 0:
             ts = torch.cat([torch.zeros(1), ts])
             padding = True
-        # pdb.set_trace()
+
         if self.function_type != 'gnn':
             q = init_states[:, :self.nb_coords].reshape(b, self.nb_object, -1).reshape(b, -1) # [b, N x D//2]
             p = init_states[:, self.nb_coords:].reshape(b, self.nb_object, -1).reshape(b, -1)
             
             x0 = torch.cat([q, p], dim=-1)
-
             
             X, Xr = self.solve(ts, x0) # [B, T, N x d x 2]
 
@@ -281,8 +309,7 @@ class ODENetwork(nn.Module):
             Xq = Xq.reshape(b, T, self.nb_object, self.nb_coords).permute(0, 2, 1, 3).reshape(-1, T, self.nb_coords)
             Xp = Xp.reshape(b, T, self.nb_object, self.nb_coords).permute(0, 2, 1, 3).reshape(-1, T, self.nb_coords)
             Xrq = Xrq.reshape(b, T, self.nb_object, self.nb_coords).permute(0, 2, 1, 3).reshape(-1, T, self.nb_coords)
-            Xrp = Xrp.reshape(b, T, self.nb_object, self.nb_coords).permute(0, 2, 1, 3).reshape(-1, T, self.nb_coords)
-            
+            Xrp = Xrp.reshape(b, T, self.nb_object, self.nb_coords).permute(0, 2, 1, 3).reshape(-1, T, self.nb_coords)   
         else:
             x0 = init_states.reshape(b, self.nb_object, -1)  
 
@@ -293,25 +320,20 @@ class ODENetwork(nn.Module):
             Xq, Xp = X[:,:,:D//2], X[:,:,D//2:]
             Xrq, Xrp = Xr[:,:,:D//2], Xr[:,:,D//2:]
 
-
         if padding:
             mask = batch_dec["mask"]
         else:
             mask = batch_dec["mask"][:, 1:, :]
             batch_dec["data"] = batch_dec["data"][:, 1:, :]
             
-        # X = torch.cat([Xq, Xp], dim=2)
-        # pdb.set_trace()
         if pred_length_cut is None:
             pred_length_cut = mask.shape[1]
-        # print(pred_length_cut)
+
         Xq, Xp, Xrq, Xrp = Xq[:, :pred_length_cut, :], Xp[:, :pred_length_cut, :], Xrp[:, :pred_length_cut, :], Xrp[:, :pred_length_cut, :]
         mask, batch_dec["data"] = mask[:, :pred_length_cut, :], batch_dec["data"][:, :pred_length_cut, :]
         
         timelength_per_nodes = torch.sum(mask.permute(0,2,1),dim=2)
-        # pdb.set_trace()
-        # mask = mask.reshape(b, self.nb_object, T, -1).permute(0,2,1,3).reshape(b, T, -1)
-        # pdb.set_trace()
+
         forward_diff = torch.square(torch.cat([Xq, Xp], dim=2) - batch_dec["data"]) * mask
         forward_diff = forward_diff.sum(dim=1) / timelength_per_nodes
         l_ode = torch.mean(forward_diff)
@@ -333,14 +355,6 @@ class ODENetwork(nn.Module):
         forward_mape = torch.sum(forward_mape * mask)
         num_points = torch.sum(mask)
         mape = forward_mape/num_points
-        
-        
-        
-        # forward_mape = torch.sum(forward_mape * mask, dim=1)
-        # # pdb.set_trace()
-        # # forward_mape = forward_mape / torch.sum(torch.abs(batch_dec["data"]) * mask, dim=1)
-        # forward_mape = forward_mape / timelength_per_nodes
-        # forward_mape = torch.mean(forward_mape)
 
         forward_rmse = torch.abs(torch.cat([Xq, Xp], dim=2) - batch_dec["data"])  * mask
         forward_rmse = forward_rmse.sum(dim=1) / timelength_per_nodes
@@ -355,11 +369,3 @@ class ODENetwork(nn.Module):
         results["rmse"] = forward_rmse.data.item()
 
         return results
-
-        
-
-
-
-
-
-        
