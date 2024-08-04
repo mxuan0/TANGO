@@ -36,7 +36,3 @@ class Encoder(nn.Module):
         last_dim = h.size()[-1] // 2
         mu,std = h[:, :last_dim], h[:, last_dim:]
         return mu,std
-
-
-
-

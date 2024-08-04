@@ -68,10 +68,6 @@ parser.add_argument('--pred_length_cut', type=int, default=60,help="should be le
 parser.add_argument('--use_trsode', action='store_true', default=False)
 
 
-
-
-
-
 args = parser.parse_args()
 assert (int(args.rec_dims % args.n_heads) == 0)
 
@@ -94,9 +90,6 @@ if args.data == "charged":
 if args.data == "pendulum":
     args.suffix = '_pendulum3'
     args.dataset='data/pendulum'
-
-
-
 
 task = 'extrapolation' if args.extrap == 'True' else 'intrapolation'
 
@@ -165,16 +158,11 @@ if __name__ == '__main__':
     if args.load is not None:
         ckpt_path = os.path.join(args.load)
         utils.get_ckpt_model(ckpt_path, model, device)
-        # exit()
 
     ##################################################################
     # Training
 
-    # log_dir = os.path.join("./home/zijiehuang/LGODE_logs/", '%s_%s'%(args.data, task))
     log_dir = os.path.join("/home/zijiehuang", "PIGODE_logs", '%s_%d_%s' % (args.data, args.total_ode_step, args.name))
-
-    # args.alias + "_" + args.z0_encode./home/zijiehuang/LGODE_logsr + "_" + args.data + "_" + str(
-    #     args.sample_percent_train) + "_" + args.mode + "_" + str(experimentID) + ".log"
     Path(log_dir).mkdir(parents=True, exist_ok=True)
 
 
@@ -189,7 +177,6 @@ if __name__ == '__main__':
     logger.info(args.alias)
 
     # Optimizer
-
     if args.optimizer == "AdamW":
         optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.l2)
     elif args.optimizer == "Adam":
@@ -197,13 +184,11 @@ if __name__ == '__main__':
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.Tmax, args.eta_min)
 
-
     wait_until_kl_inc = 10
     best_test_mse = np.inf
     best_train_mse = np.inf
 
     n_iters_to_viz = 1
-
 
     writer = SummaryWriter(log_dir=os.path.join(
         args.tensorboard_dir,
@@ -214,6 +199,8 @@ if __name__ == '__main__':
             args.warmup_epoch, args.reverse_f_lambda,
             args.reverse_gt_lambda,args.sample_percent_train,args.sample_percent_test)
     ))
+
+
     def train_single_batch(model, batch_dict_encoder, batch_dict_decoder, batch_dict_graph, energy_lambda ,reverse_f_lambda,reverse_gt_lambda):
 
         optimizer.zero_grad()
@@ -227,11 +214,9 @@ if __name__ == '__main__':
         optimizer.step()
 
         loss_value = loss.data.item()
-
         del loss
         torch.cuda.empty_cache()
-        # train_res, loss
-        # return loss_value, train_res["mse"], train_res["likelihood"],train_res["energy_mse"],train_res["forward_gt_mse"],train_res["reverse_f_mse"],train_res["reverse_gt_mse"]
+        
         return loss_value, train_res["mse"], train_res["likelihood"],train_res["forward_gt_mse"],train_res["reverse_f_mse"],train_res["reverse_gt_mse"],train_res["forward_gt_mape"]
 
 
@@ -244,14 +229,12 @@ if __name__ == '__main__':
         reverse_gt_mse_list = []
         forward_gt_mape_list = []
         likelihood_list = []
-        # energy_mse_list=[]
         kl_first_p_list = []
         std_first_p_list = []
 
         torch.cuda.empty_cache()
 
         for itr in tqdm(range(train_batch)):
-
             batch_dict_encoder = utils.get_next_batch_new(train_encoder, device)
 
             batch_dict_graph = utils.get_next_batch_new(train_graph, device)
@@ -260,9 +243,6 @@ if __name__ == '__main__':
 
             loss, mse, likelihood,forward_gt_mse,reverse_f_mse,reverse_gt_mse,forward_gt_mape = train_single_batch(model, batch_dict_encoder, batch_dict_decoder, batch_dict_graph,energy_lambda,
                                                        reverse_f_lambda,reverse_gt_lambda)
-
-
-
             # saving results
             loss_list.append(loss), mse_list.append(mse), likelihood_list.append(
                 likelihood),  forward_gt_mse_list.append(
@@ -280,13 +260,8 @@ if __name__ == '__main__':
             np.mean(loss_list),
             np.mean(forward_gt_mse_list), np.mean(reverse_f_mse_list),np.mean(reverse_gt_mse_list),np.mean(forward_gt_mape_list))
 
-
-
-
         # return message_train ,np.mean(energy_mse_list), np.mean(forward_gt_mse_list), np.mean(reverse_f_mse_list),np.mean(reverse_gt_mse_list)
         return message_train , np.mean(forward_gt_mse_list), np.mean(reverse_f_mse_list),np.mean(reverse_gt_mse_list)
-
-
 
 
     for epo in range(1, args.niters + 1):
@@ -340,18 +315,13 @@ if __name__ == '__main__':
                     'state_dict': model.state_dict(),
                 }, ckpt_path)
 
-
                 logger.info(message_test_best)
-
 
             if train_forward_gt_mse < best_train_mse:
                 best_train_mse = train_forward_gt_mse
                 message_train_best = 'Epoch {:04d} [Train seq (cond on sampled tp)] | B train forward gt  mse {:.6f}'.format(
                     epo,best_train_mse)
                 logger.info(message_train_best)
-
-
-
 
             writer.add_scalar('train_MSE/train_forward_gt_mse', train_forward_gt_mse, epo)
             writer.add_scalar('train_MSE/train_reverse_f_mse', train_reverse_f_mse,epo)
@@ -363,17 +333,3 @@ if __name__ == '__main__':
             torch.cuda.empty_cache()
 
     writer.close()
-
-
-
-
-
-
-
-
-
-
-
-
-
-

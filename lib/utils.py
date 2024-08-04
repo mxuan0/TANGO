@@ -6,9 +6,11 @@ import torch.nn as nn
 import numpy as np
 from tqdm import tqdm
 
+
 def makedirs(dirname):
 	if not os.path.exists(dirname):
 		os.makedirs(dirname)
+
 
 def save_checkpoint(state, save, epoch):
 	if not os.path.exists(save):
@@ -54,20 +56,24 @@ def inf_generator(iterable):
 		except StopIteration:
 			iterator = iterable.__iter__()
 
+
 def dump_pickle(data, filename):
 	with open(filename, 'wb') as pkl_file:
 		pickle.dump(data, pkl_file)
+
 
 def load_pickle(filename):
 	with open(filename, 'rb') as pkl_file:
 		filecontent = pickle.load(pkl_file)
 	return filecontent
 
+
 def init_network_weights(net, std = 0.1):
 	for m in net.modules():
 		if isinstance(m, nn.Linear):
 			nn.init.normal_(m.weight, mean=0, std=std)
 			nn.init.constant_(m.bias, val=0)
+
 
 def flatten(x, dim):
 	return x.reshape(x.size()[:dim] + (-1, ))
@@ -79,6 +85,7 @@ def get_device(tensor):
 		device = tensor.get_device()
 	return device
 
+
 def sample_standard_gaussian(mu, sigma):
 	device = get_device(mu)
 
@@ -86,23 +93,26 @@ def sample_standard_gaussian(mu, sigma):
 	r = d.sample(mu.size()).squeeze(-1)
 	return r * sigma.float() + mu.float()
 
+
 def get_dict_template():
 	return {"data": None,
 			"time_setps": None,
 			"mask": None,
 			"time_first": None
 			}
+
+
 def get_next_batch_new(dataloader,device):
 	data_dict = dataloader.__next__()
 	#device_now = data_dict.batch.device
 	return data_dict.to(device)
+
 
 def get_next_batch(dataloader,device):
 	# Make the union of all time points and perform normalization across the whole dataset
 	data_dict = dataloader.__next__()
 
 	batch_dict = get_dict_template()
-
 
 	batch_dict["data"] = data_dict["data"].to(device)
 	batch_dict["time_steps"] = data_dict["time_steps"].to(device)
@@ -156,9 +166,11 @@ def linspace_vector(start, end, n_points):
 		res = torch.t(res.reshape(start.size(0), n_points))
 	return res
 
+
 def reverse(tensor):
 	idx = [i for i in range(tensor.size(0)-1, -1, -1)]
 	return tensor[idx]
+
 
 def create_net(n_inputs, n_outputs, n_layers = 1,
 	n_units = 100, nonlinear = nn.Tanh):
@@ -170,8 +182,6 @@ def create_net(n_inputs, n_outputs, n_layers = 1,
 	layers.append(nonlinear())
 	layers.append(nn.Linear(n_units, n_outputs))
 	return nn.Sequential(*layers)
-
-
 
 
 def compute_loss_all_batches(model,
@@ -191,9 +201,6 @@ def compute_loss_all_batches(model,
 	total["reverse_gt_mse"] = 0
 	total["forward_gt_mape"] = 0
 	total["forward_gt_rmse"] = 0
-
-
-
 
 	n_test_batches = 0
 
@@ -226,8 +233,6 @@ def compute_loss_all_batches(model,
 
 			del batch_dict_encoder,batch_dict_graph,batch_dict_decoder,results
 
-
-
 		if n_test_batches > 0:
 			for key, value in total.items():
 				total[key] = total[key] / n_test_batches
@@ -235,9 +240,4 @@ def compute_loss_all_batches(model,
 	F = np.array([item for sublist in F for item in sublist])
 	R = np.array([item for sublist in R for item in sublist])
 
-	return total,GT,F, R
-
-
-
-
-
+	return total, GT, F, R

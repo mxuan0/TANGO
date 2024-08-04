@@ -1,10 +1,12 @@
 from lib.likelihood_eval import *
 import torch
 
+
 def gaussian_log_likelihood(mu, data, obsrv_std):
 	log_p = ((mu - data) ** 2) / (2 * obsrv_std * obsrv_std)
 	neg_log_p = -1*log_p
 	return neg_log_p
+
 
 def generate_time_weight(n_timepoints,n_dims):
 	value_min = 1
@@ -17,6 +19,7 @@ def generate_time_weight(n_timepoints,n_dims):
 	value_matrix= torch.cat([value_list for _ in range(n_dims)],dim = 1)
 
 	return value_matrix
+
 
 def compute_masked_likelihood(mu, data, mask, likelihood_func,temporal_weights=None):
 	# Compute the likelihood per patient and per attribute so that we don't priorize patients with more measurements
@@ -33,13 +36,11 @@ def compute_masked_likelihood(mu, data, mask, likelihood_func,temporal_weights=N
 		unnormalized_map = torch.sum(unnormalized_map * mask, dim=2)
 
 		log_prob_masked = torch.sum(log_prob * mask, dim=2)  # [1, n_traj_samples, d]
-		# norm_masked = torch.sum(abs(mu) * mask, dim=2)
-
-	# unnormalized_map = log_prob_masked / norm_masked
 
 	timelength_per_nodes = torch.sum(mask.permute(0,1,3,2),dim=3) #[1,n_traj_samples,d]
 	assert (not torch.isnan(timelength_per_nodes).any())
 	mse_log_prob_masked_normalized = torch.div(log_prob_masked , timelength_per_nodes) #【n_traj_sample, n_traj, d], average each feature by dividing time length
+	
 	# Take mean over the number of dimensions
 	res_mse = torch.mean(mse_log_prob_masked_normalized, -1) # 【n_traj_sample, n_traj], average among features.
 	res_mse = res_mse.transpose(0,1)
@@ -51,8 +52,8 @@ def compute_masked_likelihood(mu, data, mask, likelihood_func,temporal_weights=N
 
 	return res_mse,res_mape
 
-def masked_gaussian_log_density(mu, data, obsrv_std, mask,temporal_weights=None):
 
+def masked_gaussian_log_density(mu, data, obsrv_std, mask,temporal_weights=None):
 	n_traj_samples, n_traj, n_timepoints, n_dims = mu.size()
 
 	assert(data.size()[-1] == n_dims)
@@ -65,23 +66,27 @@ def masked_gaussian_log_density(mu, data, obsrv_std, mask,temporal_weights=None)
 
 def mse(mu,data):
 	return  (mu - data) ** 2
+	
+
 def mape(mu,data):
 	return abs(mu - data)
 
 
 def compute_mse(mu, data, mask):
-
 	n_traj_samples, n_traj, n_timepoints, n_dims = mu.size()
 	assert(data.size()[-1] == n_dims)
 
 	res ,_= compute_masked_likelihood(mu, data, mask, mse)
 	return res
+
+
 def compute_mape(mu, data, mask):
 	n_traj_samples, n_traj, n_timepoints, n_dims = mu.size()
 	assert (data.size()[-1] == n_dims)
 
 	_,res = compute_masked_likelihood(mu, data, mask, mape)
 	return res
+
 
 def compute_rmse(mu, data, mask):
 	n_traj_samples, n_traj, n_timepoints, n_dims = mu.size()
@@ -90,8 +95,8 @@ def compute_rmse(mu, data, mask):
 	res,_ = compute_masked_likelihood(mu, data, mask, mape)
 	return res
 
+
 def compute_average_energy(mu,n_ball,k,mask):
-	# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 	n_traj_samples, n_traj, n_timepoints, n_dims = mu.size()
 
 	mu_nball= mu.view(-1, n_ball, n_timepoints, n_dims)
@@ -111,8 +116,6 @@ def compute_average_energy(mu,n_ball,k,mask):
 		for j in range(i + 1, n_ball):
 			displacement = positions[:, i, :, :] - positions[:, j, :, :]
 			displacement_magnitude = torch.norm(displacement, dim=-1)
-			# potential_energies = potential_energies.to(device)
-			# displacement_magnitude = displacement_magnitude.to(device)
 
 			potential_energies[:, i, :] += 0.5 * k * displacement_magnitude ** 2
 
@@ -123,6 +126,7 @@ def compute_average_energy(mu,n_ball,k,mask):
 	average_energy_per_trajectory_masked = torch.mean(total_energy_per_moment * mask_expanded, dim=1)
 
 	return average_energy_per_trajectory_masked  #[n_traj_pre]
+
 
 def compute_energy_likelihood(mu_energy, data_energy, likelihood_func, temporal_weights=None):
 	# Compute the likelihood per patient and per attribute so that we don't prioritize patients with more measurements
@@ -141,11 +145,3 @@ def compute_energy_likelihood(mu_energy, data_energy, likelihood_func, temporal_
 	res = torch.mean(log_prob_weighted)  # Scalar value
 
 	return res
-
-
-
-
-
-
-	
-

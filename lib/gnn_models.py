@@ -9,8 +9,8 @@ import math
 import lib.utils as utils
 import pdb
 
-class TemporalEncoding(nn.Module):
 
+class TemporalEncoding(nn.Module):
     def __init__(self, d_hid):
         super(TemporalEncoding, self).__init__()
         self.d_hid = d_hid
@@ -33,7 +33,6 @@ class TemporalEncoding(nn.Module):
         return position_term
 
 
-
 class GTrans(MessagePassing):
 
     def __init__(self, n_heads=2,d_input=6, d_k=6,dropout = 0.1,**kwargs):
@@ -47,7 +46,6 @@ class GTrans(MessagePassing):
         self.d_e = d_k//n_heads
         self.d_sqrt = math.sqrt(d_k//n_heads)
 
-        # pdb.set_trace()
         #Attention Layer Initialization
         self.w_k_list_same = nn.ModuleList([nn.Linear(self.d_input, self.d_k, bias=True) for i in range(self.n_heads)])
         self.w_k_list_diff = nn.ModuleList([nn.Linear(self.d_input, self.d_k, bias=True) for i in range(self.n_heads)])
@@ -66,7 +64,6 @@ class GTrans(MessagePassing):
         utils.init_network_weights(self.w_v_list_diff)
         utils.init_network_weights(self.w_transfer)
 
-
         #Temporal Layer
         self.temporal_net = TemporalEncoding(d_input)
 
@@ -82,7 +79,6 @@ class GTrans(MessagePassing):
 
     def message(self, x_j,x_i,edge_index_i, edges_temporal,edge_same):
         '''
-
            :param x_j: [num_edge, d] sender
            :param x_i: [num_edge,d]  receiver
            :param edge_index_i:  receiver node list [num_edge]
@@ -121,7 +117,6 @@ class GTrans(MessagePassing):
         x_i = w_q(x_i) #receiver #[num_edge,d*heads]
 
         # wraping k
-
         sender_same = edge_same * w_k_same(x_j_transfer)
         sender_diff = (1 - edge_same) * w_k_diff(x_j_transfer)
         sender = sender_same + sender_diff #[num_edge,d]
@@ -158,18 +153,14 @@ class NRIConv(nn.Module):
         self.out_fc2 = nn.Linear(out_channels, out_channels)
         self.dropout = nn.Dropout(dropout)
 
-
         #input data
         self.rel_type = None
         self.rel_rec = None
         self.rel_send = None
 
-
-
     def forward(self, inputs, pred_steps=1):
         # NOTE: Assumes that we have the same graph across all samples.
         '''
-
         :param inputs: [b,n_ball,feat]
         :param rel_type: [b,20,2]
         :param rel_rec:  [20,5] : [0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4]
@@ -231,12 +222,12 @@ class GeneralConv(nn.Module):
         elif self.conv_name == "NRI":
             self.base_conv = NRIConv(in_hid,out_hid,dropout)
 
-
     def forward(self, x, edge_index, edge_time, x_time,edge_same):
         if self.conv_name == 'GTrans':
             return self.base_conv(x, edge_index, edge_time, x_time,edge_same)
         elif self.conv_name =="NRI":
             return self.base_conv(x)
+
 
 class GNN(nn.Module):
     '''
@@ -348,8 +339,3 @@ class GNN(nn.Module):
         last_dim = h.size()[-1] //2
         res = h[:,:last_dim], h[:,last_dim:]
         return res
-
-
-
-
-

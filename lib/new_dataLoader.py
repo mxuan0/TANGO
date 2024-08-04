@@ -7,8 +7,9 @@ from tqdm import tqdm
 import lib.utils as utils
 from torch.nn.utils.rnn import pad_sequence
 import pdb
-class ParseData(object):
 
+
+class ParseData(object):
     def __init__(self, dataset_path,args,suffix='_springs5',mode="interp"):
         self.dataset_path = dataset_path
         self.suffix = suffix
@@ -27,18 +28,13 @@ class ParseData(object):
         torch.manual_seed(self.random_seed)
         np.random.seed(self.random_seed)
 
-
-
-    def load_data(self,sample_percent,batch_size,data_type="train",cut_num=5000):
+    def load_data(self, sample_percent, batch_size, data_type="train", cut_num=5000):
         self.batch_size = batch_size
         self.sample_percent = sample_percent
         if data_type == "train":
-            # cut_num = 5000
             print("train_num: ",cut_num)
         else:
-            # cut_num = 5000
             print("test_num: ",cut_num)
-
 
         # Loading Data
         loc = np.load(self.dataset_path + '/loc_' + data_type + self.suffix + '.npy', allow_pickle=True)[:cut_num]
@@ -49,11 +45,11 @@ class ParseData(object):
         self.num_graph = loc.shape[0]
         self.num_atoms = loc.shape[1]
         self.feature = loc[0][0][0].shape[0] + vel[0][0][0].shape[0]
-        print("number graph in   "+data_type+"   is %d" % self.num_graph)
+        
+        print("number graph in   " + data_type + "   is %d" % self.num_graph)
         print("number atoms in   " + data_type + "   is %d" % self.num_atoms)
 
         if self.suffix == "_springs5" or self.suffix == "_charged5" or self.suffix == '_forced_spring5' or self.suffix == '_springs_damped5' or self.suffix == '_pendulum3':
-
             # Normalize features to [-1, 1], across test and train dataset
 
             if self.max_loc == None:
@@ -67,11 +63,8 @@ class ParseData(object):
             else:
                 loc = (loc - self.min_loc) * 2 / (self.max_loc - self.min_loc) - 1
                 vel = (vel - self.min_vel) * 2 / (self.max_vel - self.min_vel) - 1
-
         else:
             self.timelength = 49
-
-
 
         # split data w.r.t interp and extrap, also normalize times
         if self.mode=="interp":
@@ -92,11 +85,11 @@ class ParseData(object):
         encoder_data_loader, graph_data_loader = self.transfer_data(loc_observed, vel_observed, edges,
                                                                     times_observed, time_begin=time_begin)
 
-
         # Graph Dataloader --USING NRI
         edges = np.reshape(edges, [-1, self.num_atoms ** 2])
         edges = np.array((edges + 1) / 2, dtype=np.int64)
         edges = torch.LongTensor(edges)
+
         # Exclude self edges
         off_diag_idx = np.ravel_multi_index(
             np.where(np.ones((self.num_atoms, self.num_atoms)) - np.eye(self.num_atoms)),
@@ -105,16 +98,15 @@ class ParseData(object):
         edges = edges[:, off_diag_idx]
         graph_data_loader = Loader(edges, batch_size=self.batch_size)
 
-
         # Decoder Dataloader
         if self.mode=="interp":
             series_list_de = series_list_observed
         elif self.mode == "extrap":
             series_list_de = self.decoder_data(loc_de,vel_de,times_de)
+        
         decoder_data_loader = Loader(series_list_de, batch_size=self.batch_size * self.num_atoms, shuffle=False,
                                      collate_fn=lambda batch: self.variable_time_collate_fn_activity(
                                          batch))  # num_graph*num_ball [tt,vals,masks]
-
 
         num_batch = len(decoder_data_loader)
         encoder_data_loader = utils.inf_generator(encoder_data_loader)
@@ -123,12 +115,11 @@ class ParseData(object):
 
         return encoder_data_loader, decoder_data_loader, graph_data_loader, num_batch
 
-
-
     def interp_extrap(self,loc,vel,times,mode,data_type):
         loc_observed = np.ones_like(loc)
         vel_observed = np.ones_like(vel)
         times_observed = np.ones_like(times)
+
         if mode =="interp":
             if data_type== "test":
                 # get ride of the extra nodes in testing data.
@@ -141,7 +132,6 @@ class ParseData(object):
                 return loc_observed,vel_observed,times_observed/self.total_step
             else:
                 return loc,vel,times/self.total_step
-
 
         elif mode == "extrap":# split into 2 parts and normalize t seperately
             loc_observed = np.ones_like(loc)
@@ -184,7 +174,6 @@ class ParseData(object):
 
             return loc_observed,vel_observed,times_observed,loc_extrap,vel_extrap,times_extrap
 
-
     def split_data(self,loc,vel,times):
         loc_observed = np.ones_like(loc)
         vel_observed = np.ones_like(vel)
@@ -200,9 +189,6 @@ class ParseData(object):
                 loc_list.append(loc[i][j][1:])  # [2500] num_train * num_ball
                 vel_list.append(vel[i][j][1:])
                 times_list.append(times[i][j][1:])
-
-
-
 
         series_list = []
         odernn_list = []
@@ -248,11 +234,9 @@ class ParseData(object):
 
             series_list.append((tt, vals, masks))
 
-
         return series_list, loc_observed, vel_observed, times_observed
 
     def decoder_data(self, loc, vel, times):
-
         # split decoder data
         loc_list = []
         vel_list = []
@@ -283,8 +267,6 @@ class ParseData(object):
 
         return series_list
 
-
-
     def transfer_data(self,loc, vel, edges, times, time_begin=0):
         data_list = []
         graph_list = []
@@ -312,8 +294,6 @@ class ParseData(object):
         # Creeating pos 【N】
         # forward: t0=0;  otherwise: t0=tN/2
 
-
-
         # compute cutting window size:
         if self.cutting_edge:
             if self.suffix == "_springs5" or self.suffix == "_charged5" or self.suffix == '_springs_external5'or self.suffix == '_springs_damped5'or self.suffix == '_pendulum3':
@@ -323,12 +303,10 @@ class ParseData(object):
         else:
             max_gap = 100
 
-
         if self.mode=="interp":
             forward= False
         else:
             forward=True
-
 
         y = np.zeros(self.num_atoms)
         x = list()
@@ -362,8 +340,8 @@ class ParseData(object):
                 node_number += 1
 
         '''
-         matrix computing
-         '''
+        matrix computing
+        '''
         # Adding self-loop
         edge_with_self_loop = edge + np.eye(self.num_atoms, dtype=int)
 
@@ -403,8 +381,6 @@ class ParseData(object):
         edge_attr = edge_attr - 2
         edge_index_original, _ = self.convert_sparse(edge)
 
-
-
         # converting to tensor
         x = torch.FloatTensor(x)
         edge_index = torch.LongTensor(edge_index)
@@ -416,7 +392,6 @@ class ParseData(object):
 
         graph_index_original = torch.LongTensor(edge_index_original)
         edge_data = Data(x = torch.ones(self.num_atoms),edge_index = graph_index_original)
-
 
         graph_data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y, pos=x_pos, edge_same=edge_is_same)
         edge_size = edge_index.shape[1]
@@ -443,9 +418,7 @@ class ParseData(object):
         combined_vals = torch.zeros([len(batch), len(combined_tt), D])
         combined_mask = torch.zeros([len(batch), len(combined_tt), D])
 
-
         for b, ( tt, vals, mask) in enumerate(batch):
-
             indices = inverse_indices[offset:offset + len(tt)]
 
             offset += len(tt)
@@ -460,7 +433,6 @@ class ParseData(object):
 
         combined_tt = combined_tt.float()
 
-
         data_dict = {
             "data": combined_vals,
             "time_steps": combined_tt,
@@ -470,7 +442,6 @@ class ParseData(object):
 
     def normalize_features(self,inputs, num_balls):
         '''
-
         :param inputs: [num-train, num-ball,(timestamps,2)]
         :return:
         '''
@@ -490,8 +461,3 @@ class ParseData(object):
         edge_index = np.vstack((graph_sparse.row, graph_sparse.col))
         edge_attr = graph_sparse.data
         return edge_index, edge_attr
-
-
-
-
-

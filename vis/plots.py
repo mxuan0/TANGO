@@ -59,6 +59,7 @@ def varying_pred_length_plot(exp, main_method_name='TANGO', baseline_name='LG-OD
     plt.tight_layout()
     plt.savefig('plot/%s_BY_LENGTH.png'%exp, dpi=250)
 
+
 def reverse_forward_mse_plot(exp, main_method_name='TANGO', baseline_name='LG-ODE'):
     val_main_method = pd.read_csv("%s/%s_%s.csv" % (TENSORBOARD_DATA_DIR, main_method_name, exp))['Value'].tolist()
     val_baseline_method = pd.read_csv("%s/%s_%s.csv" % (TENSORBOARD_DATA_DIR, baseline_name, exp))['Value'].tolist()
@@ -91,7 +92,6 @@ def reverse_forward_mse_plot(exp, main_method_name='TANGO', baseline_name='LG-OD
 
     plt.tight_layout()
     plt.savefig('plot/%s_reverse_forward_mse.png'%exp, dpi=250)
-
 
 
 varying_pred_length_plot('simple_spring')

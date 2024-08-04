@@ -8,8 +8,8 @@ import lib.utils as utils
 from torch.nn.utils.rnn import pad_sequence
 import pdb
 
-class ParseData(object):
 
+class ParseData(object):
     def __init__(self, dataset_path,args,suffix='_springs5',mode="interp"):
         self.dataset_path = dataset_path
         self.suffix = suffix
@@ -28,18 +28,16 @@ class ParseData(object):
         torch.manual_seed(self.random_seed)
         np.random.seed(self.random_seed)
 
-
-
     def load_data(self,sample_percent,batch_size,data_type="train",cut_num=5000):
         self.batch_size = batch_size
         self.sample_percent = sample_percent
+
         if data_type == "train":
             # cut_num = 5000
             print("train_num: ",cut_num)
         else:
             # cut_num = 5000
             print("test_num: ",cut_num)
-
 
         # Loading Data
         loc = np.load(self.dataset_path + '/loc_' + data_type + self.suffix + '.npy', allow_pickle=True)[:cut_num]
@@ -55,7 +53,6 @@ class ParseData(object):
 
         if self.suffix == "_springs5" or self.suffix == "_charged5" or self.suffix == '_forced_spring5' or self.suffix == 'pendulum3' or self.suffix == '_springs_damped5':
             # Normalize features to [-1, 1], across test and train dataset
-
             if self.max_loc == None:
                 loc, max_loc, min_loc = self.normalize_features(loc,
                                                                 self.num_atoms)  # [num_sims,num_atoms, (timestamps,2)]
@@ -70,8 +67,6 @@ class ParseData(object):
 
         else:
             self.timelength = 49
-
-
 
         # split data w.r.t interp and extrap, also normalize times
         if self.mode=="interp":
@@ -108,10 +103,10 @@ class ParseData(object):
             series_list_de = self.decoder_data(loc_de,vel_de,times_de)
         else:
             raise NotImplementedError
+        
         decoder_data_loader = Loader(series_list_de, batch_size=self.batch_size * self.num_atoms, shuffle=False,
                                      collate_fn=lambda batch: self.variable_time_collate_fn_activity(
                                          batch))  # num_graph*num_ball [tt,vals,masks]
-
 
         num_batch = len(decoder_data_loader)
         encoder_data_loader = utils.inf_generator(encoder_data_loader)
@@ -119,8 +114,6 @@ class ParseData(object):
         decoder_data_loader = utils.inf_generator(decoder_data_loader)
 
         return encoder_data_loader, decoder_data_loader, graph_data_loader, num_batch
-
-
 
     def interp_extrap(self,loc,vel,times,mode,data_type):
         loc_observed = np.ones_like(loc)
@@ -138,7 +131,6 @@ class ParseData(object):
                 return loc_observed,vel_observed,times_observed/self.total_step
             else:
                 return loc,vel,times/self.total_step
-
 
         elif mode == "extrap":# split into 2 parts and normalize t seperately
             loc_observed = np.ones_like(loc)
@@ -180,7 +172,6 @@ class ParseData(object):
                 times_extrap = (times_extrap - self.total_step//2) / self.total_step
 
             return loc_observed,vel_observed,times_observed,loc_extrap,vel_extrap,times_extrap
-
 
     def split_data(self,loc,vel,times):
         loc_observed = np.ones_like(loc)
@@ -242,11 +233,9 @@ class ParseData(object):
 
             series_list.append((tt, vals, masks))
 
-
         return series_list, loc_observed, vel_observed, times_observed
 
     def decoder_data(self, loc, vel, times):
-
         # split decoder data
         loc_list = []
         vel_list = []
@@ -278,7 +267,6 @@ class ParseData(object):
         return series_list
 
     def encoder_data(self, loc, vel, times):
-
         # split decoder data
         # feature_list = []
         # vel_list = []
@@ -302,14 +290,11 @@ class ParseData(object):
 
         combined_t = combined_t.float()
 
-
         data_dict = {
             "data": combined_vals,
             "time_steps": combined_t - 1
             }
         return data_dict
-
-
     
     def variable_time_collate_fn_activity(self,batch):
         """
@@ -332,9 +317,7 @@ class ParseData(object):
         combined_mask = torch.zeros([len(batch), len(combined_tt), D])
         combined_frt = torch.zeros(len(batch))
 
-
         for b, ( tt, vals, mask) in enumerate(batch):
-
             indices = inverse_indices[offset:offset + len(tt)]
 
             offset += len(tt)
@@ -350,7 +333,6 @@ class ParseData(object):
 
         combined_tt = combined_tt.float()
 
-
         data_dict = {
             "data": combined_vals,
             "time_steps": combined_tt,
@@ -361,7 +343,6 @@ class ParseData(object):
 
     def normalize_features(self,inputs, num_balls):
         '''
-
         :param inputs: [num-train, num-ball,(timestamps,2)]
         :return:
         '''
@@ -381,8 +362,3 @@ class ParseData(object):
         edge_index = np.vstack((graph_sparse.row, graph_sparse.col))
         edge_attr = graph_sparse.data
         return edge_index, edge_attr
-
-
-
-
-

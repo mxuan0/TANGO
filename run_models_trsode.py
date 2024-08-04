@@ -15,64 +15,6 @@ from pathlib import Path
 import pdb
 
 
-def compute_loss_all_batches(model, encoder, graph, decoder, n_batches, device, function_type, pred_length_cut=None):
-    total = {}
-    total["loss"] = 0
-    total["mse"] = 0
-    total["mape"] = 0
-    total["forward_gt_mse"] = 0
-    total["reverse_f_mse"] = 0
-    total["rmse"] = 0
-
-    n_test_batches = 0
-
-    model.eval()
-    print("Computing loss... ")
-    if function_type == 'hamiltonian':
-        for i in tqdm(range(n_batches)):
-            batch_dict_encoder = utils.get_next_batch(encoder, device)
-            batch_dict_decoder = utils.get_next_batch(decoder, device)
-            batch_dict_graph = utils.get_next_batch_new(graph, device)
-                
-            results = model.compute_loss(batch_dict_encoder, batch_dict_decoder, batch_dict_graph, pred_length_cut=pred_length_cut)
-
-            for key in total.keys():
-                if key in results:
-                    var = results[key]
-                    if isinstance(var, torch.Tensor):
-                        var = var.detach().item()
-                    total[key] += var
-
-            n_test_batches += 1
-
-            del batch_dict_encoder,batch_dict_decoder,results
-    else:
-        with torch.no_grad():
-            for i in tqdm(range(n_batches)):
-                batch_dict_encoder = utils.get_next_batch(encoder, device)
-                batch_dict_decoder = utils.get_next_batch(decoder, device)
-                batch_dict_graph = utils.get_next_batch_new(graph, device)
-                    
-                results = model.compute_loss(batch_dict_encoder, batch_dict_decoder, batch_dict_graph, pred_length_cut=pred_length_cut)
-
-                for key in total.keys():
-                    if key in results:
-                        var = results[key]
-                        if isinstance(var, torch.Tensor):
-                            var = var.detach().item()
-                        total[key] += var
-
-                n_test_batches += 1
-
-                del batch_dict_encoder,batch_dict_decoder,results
-
-    if n_test_batches > 0:
-        for key, value in total.items():
-            total[key] = total[key] / n_test_batches
-
-
-    return total
-
 # Generative model for noisy data based on ODE
 parser = argparse.ArgumentParser('Latent ODE')
 parser.add_argument('--n-balls', type=int, default=5,
@@ -154,8 +96,6 @@ if args.data == "pendulum":
     args.suffix = '_pendulum3'
     args.dataset='data/pendulum'
 
-
-
 task = 'extrapolation' if args.extrap == 'True' else 'intrapolation'
 
 ############ CPU AND GPU related, Mode related, Dataset Related
@@ -228,16 +168,11 @@ if __name__ == '__main__':
     if args.load is not None:
         ckpt_path = os.path.join(args.load)
         utils.get_ckpt_model(ckpt_path, model, device)
-        # exit()
 
     ##################################################################
     # Training
-    # pdb.set_trace()
-    # log_dir = os.path.join("./home/zijiehuang/LGODE_logs/", '%s_%s'%(args.data, task))
     log_dir = os.path.join("/home/zijiehuang", "PIGODE_logs", '%s_%d' % (args.data, args.total_ode_step),'%s' %(args.name))
 
-    # args.alias + "_" + args.z0_encode./home/zijiehuang/LGODE_logsr + "_" + args.data + "_" + str(
-    #     args.sample_percent_train) + "_" + args.mode + "_" + str(experimentID) + ".log"
     Path(log_dir).mkdir(parents=True, exist_ok=True)
 
     logname = 'niters%d_lr%f-%d-%f_warmup-epoch%d_reverse_f_lambda%.2f_reverse_gt_lambda%.2f_traincut%d_testcut%d_observ-ratio_train%.2f_test%.2f.log' % (
@@ -259,16 +194,10 @@ if __name__ == '__main__':
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.Tmax, args.eta_min)
 
-    # pdb.set_trace()
-    # wait_until_kl_inc = 10
     best_test_mse = np.inf
     best_train_mse = np.inf
 
     n_iters_to_viz = 1
-
-    # #weight of reverse:
-    # reverse_f_lambda=None
-    # reverse_gt_lambda=None
 
     writer = SummaryWriter(log_dir=os.path.join(
         args.tensorboard_dir,
@@ -280,6 +209,7 @@ if __name__ == '__main__':
             args.warmup_epoch, args.reverse_f_lambda,
             args.reverse_gt_lambda)
     ))
+
 
     def train_single_batch(model, batch_dict_encoder, batch_dict_decoder, batch_dict_graph=None, reverse_f_lambda=None):
 
@@ -293,11 +223,9 @@ if __name__ == '__main__':
         optimizer.step()
 
         loss_value = loss.data.item()
-
         del loss
         torch.cuda.empty_cache()
-        # train_res, loss
-        # return loss_value, train_res["mse"], train_res["likelihood"],train_res["energy_mse"],train_res["forward_gt_mse"],train_res["reverse_f_mse"],train_res["reverse_gt_mse"]
+
         return loss_value, train_res["mse"], train_res["forward_gt_mse"],train_res["reverse_f_mse"]
 
 
@@ -309,7 +237,6 @@ if __name__ == '__main__':
         reverse_f_mse_list = []
         reverse_gt_mse_list = []
         likelihood_list = []
-        # energy_mse_list=[]
         kl_first_p_list = []
         std_first_p_list = []
 
@@ -339,31 +266,16 @@ if __name__ == '__main__':
             np.mean(loss_list),
             np.mean(forward_gt_mse_list), np.mean(reverse_f_mse_list))
 
-        # return message_train ,np.mean(energy_mse_list), np.mean(forward_gt_mse_list), np.mean(reverse_f_mse_list),np.mean(reverse_gt_mse_list)
         return message_train , np.mean(forward_gt_mse_list), np.mean(reverse_f_mse_list)
 
-    for pred_length_cut in [20, 30, 40, 50, 60]:
-        test_res = compute_loss_all_batches(model, test_encoder, test_graph, test_decoder,
-                                                n_batches=test_batch, device=device,
-                                                function_type=args.function_type,
-                                                pred_length_cut=pred_length_cut)
-            # pdb.set_trace()
-
-
-        message_test = 'Epoch 0 [Test seq (cond on sampled tp)]| Loss {:.6f} | Forward gt MSE {:.6f} | Reverse f MSE {:.6f} | forward_gt_rmse {:.6f}  | mape {:.6f} '.format(
-            test_res["loss"],
-            test_res["forward_gt_mse"], test_res["reverse_f_mse"], test_res["rmse"],
-            test_res["mape"])
-        print(message_test)
 
     for epo in range(1, args.niters + 1):
         if args.time_dep_lambda:
             reverse_f_lambda = args.reverse_f_lambda + args.time_dep_lambda_coef  * epo
         else:
             reverse_f_lambda = args.reverse_f_lambda
+        
         reverse_gt_lambda = args.reverse_gt_lambda
-        print(reverse_f_lambda)
-        # message_train,train_energy_mse,train_forward_gt_mse,train_reverse_f_mse,train_reverse_gt_mse = train_epoch(epo)
         message_train,train_forward_gt_mse,train_reverse_f_mse = train_epoch(epo, reverse_f_lambda)
 
         if epo % n_iters_to_viz == 0:
@@ -422,10 +334,6 @@ if __name__ == '__main__':
                 Path(reverse_dir).mkdir(parents=True, exist_ok=True)
 
                 # # Save files
-                # np.save(os.path.join(groundtruth_dir, 'groundtruth_trajectory.npy'), gt.cpu().detach().numpy())
-                # np.save(os.path.join(forward_dir, 'forward_trajectory.npy'), f.cpu().detach().numpy())
-                # np.save(os.path.join(reverse_dir, 'reverse_trajectory.npy'), r.cpu().detach().numpy())
-
                 ckpt_path = os.path.join(args.save, "experiment_" + str(
                     experimentID) + "_"  + args.data + "_" + str(
                     args.total_ode_step) + "_" + args.name +"_obratio_"+str(args.sample_percent_train)+"_rflambda_"+str(args.reverse_f_lambda)+ "_epoch_" + str(epo) + "_mse_" + str(
@@ -443,32 +351,12 @@ if __name__ == '__main__':
                     epo,best_train_mse)
                 logger.info(message_train_best)
 
-                # ckpt_path = os.path.join(args.save, "experiment_" + str(
-                #     experimentID) + "_" + args.z0_encoder + "_" + args.data + "_" + str(
-                #     args.sample_percent_train) + "_" + args.mode + "_epoch_" + str(epo) + "_mse_" + str(
-                #     best_test_mse) + '.ckpt')
-                # torch.save({
-                #     'args': args,
-                #     'state_dict': model.state_dict(),
-                # }, ckpt_path)
-
-
             writer.add_scalar('train_MSE/train_forward_gt_mse', train_forward_gt_mse, epo)
             writer.add_scalar('train_MSE/train_reverse_f_mse', train_reverse_f_mse,epo)
-            # writer.add_scalar('train_MSE/train_reverse_gt_mse', train_reverse_gt_mse, epo)
-            # writer.add_scalar('train_MSE/train_energy_mse', train_energy_mse, epo)
 
             writer.add_scalar('test_MSE/test_forward_gt_mse', test_res["forward_gt_mse"], epo)
             writer.add_scalar('test_MSE/test_reverse_f_mse', test_res["reverse_f_mse"], epo)
-            # writer.add_scalar('test_MSE/test_reverse_gt_mse', test_res["reverse_gt_mse"], epo)
-            # writer.add_scalar('test_MSE/test_energy_mse', test_res["energy_mse"], epo)
-
-
-
-            # writer.add_scalar('Weight/FGT_RF', test_res["forward_gt_mse"] / test_res["reverse_f_mse"], epo)
-            # writer.add_scalar('Weight/FGT_RGT', test_res["forward_gt_mse"] / test_res["reverse_gt_mse"], epo)
 
             torch.cuda.empty_cache()
 
     writer.close()
-
